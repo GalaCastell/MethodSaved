@@ -78,30 +78,34 @@ def smb_directory_tree(conn, share_name, path="\\", output_file=None):
                 pass
         return dict(path=path, nondirs=sorted(nondirs), dirs=sorted(dirs, key= lambda x: x['path']))
 
-    # def map_tree(tree, output_file):
+    def map_tree(tree, output_file):
+        from io import StringIO
 
-    #     def draw_nondirs(nondirs, level, lines=[]):
-    #         for item in nondirs:
-    #             lines.append(" " * 4 * level + u"·" + item + "\n")
-    #         return lines
+        output = StringIO()
 
-    #     def draw_dirs(directory, level, lines=[]):
-    #         lines.append(" " * 4 * level + "+ " + unicode(directory.get("path")) + "\n")
-    #         nondirs = directory.get("nondirs")
-    #         next_dirs = directory.get("dirs")
-    #         if nondirs:
-    #             lines += draw_nondirs(nondirs, level+1, lines)
-    #         if next_dirs:
-    #             for d in next_dirs:
-    #                 lines += draw_dirs(d, level+1, lines)
-    #         return lines
+        def draw_nondirs(nondirs, level, output):
+            for item in nondirs:
+                output.write(" " * 4 * level + u"·" + item + "\n")
+            return output
 
-    #     with io.open(output_file, "w", encoding="utf-8") as f:
-            
+        def draw_dirs(directory, level, output):
+            output.write(" " * 4 * level + "+ " + unicode(directory.get("path")) + "\n")
+            nondirs = directory.get("nondirs")
+            next_dirs = directory.get("dirs")
+            if nondirs:
+                output = draw_nondirs(nondirs, level+1, output)
+            if next_dirs:
+                for d in next_dirs:
+                    output = draw_dirs(d, level+1, output)
+            return output
+
+        with io.open(output_file, "w", encoding="utf-8") as f:
+            output = draw_dirs(tree, 0, output)
+            f.write(output.getvalue())
 
     tree = walk(path)
-    # if output_file:
-    #     map_tree(tree, output_file)
+    if output_file:
+        map_tree(tree, output_file)
     return tree
 
 
@@ -203,10 +207,11 @@ def main():
     if not COMPUTER_NAME:
         return {"status_code": "02", "status":"Fail", "comment": "Get hostname failed!"}
     conn = build_connection(USER, PASSWORD, IP, MY_NAME, COMPUTER_NAME)
-    tree = smb_directory_tree(conn, SHARE_NAME, path=path)
+    tree = smb_directory_tree(conn, SHARE_NAME, path=path, output_file="directory_tree.txt")
 
-    retrieve_file_from_tree(conn, tree, SHARE_NAME, save_path, replace=False, 
-                            timeout=30, interval=5, retry_time=0)
+
+    # retrieve_file_from_tree(conn, tree, SHARE_NAME, save_path, replace=False, 
+    #                         timeout=30, interval=5, retry_time=0)
 
 
 if __name__ == '__main__':
